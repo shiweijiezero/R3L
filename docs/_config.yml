@@ -1,0 +1,15 @@
+title: "R³L: Reflect-then-Retry Reinforcement Learning"
+description: "Language-Guided Exploration, Pivotal Credit and Positive Amplification"
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+baseurl: "/R3L"
+
+# Show downloads
+show_downloads: false
+
+# MathJax for LaTeX rendering
+markdown: kramdown
+kramdown:
+  math_engine: mathjax

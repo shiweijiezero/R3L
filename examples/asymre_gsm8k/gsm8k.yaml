@@ -1,0 +1,74 @@
+# Configuration file for the AsymRE GSM8k project.
+# REINFORCE for off-Policy Reinforcement Learning: Balancing positive and negative rewards
+# https://arxiv.org/abs/2506.20520.
+
+project: "Trinity-RFT-GSM8K"
+name: asymre_gsm8k
+checkpoint_root_dir:  ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,Qwen/Qwen2.5-1.5B-Instruct}
+  max_response_tokens: 1024
+  max_model_len: 2048
+algorithm:
+  algorithm_type: asymre
+  repeat_times: 8
+  optimizer:
+    lr: 1e-6
+  policy_loss_fn_args:
+    tau: 0
+  advantage_fn_args:
+    baseline_shift: -0.1
+cluster:
+  node_num: 1
+  gpu_per_node: 8
+buffer:
+  total_steps: 80
+  batch_size: 96
+  explorer_input:
+    taskset:
+      name: gsm8k
+      storage_type: file
+      path: ${oc.env:TRINITY_TASKSET_PATH,openai/gsm8k}
+      subset_name: 'main'
+      split: train
+      format:
+        prompt_key: question
+        response_key: answer
+      rollout_args:
+        temperature: 1.0
+      default_workflow_type: math_workflow
+    eval_tasksets:
+      - name: gsm8k-eval
+        storage_type: file
+        path: ${oc.env:TRINITY_TASKSET_PATH,openai/gsm8k}
+        subset_name: 'main'
+        split: test
+        format:
+          prompt_key: question
+          response_key: answer
+        default_workflow_type: math_workflow
+  trainer_input:
+    experience_buffer:
+      name: gsm8k_buffer
+      storage_type: queue
+explorer:
+  eval_interval: 20
+  runner_per_model: 8
+  rollout_model:
+    engine_num: 4
+    tensor_parallel_size: 1
+    enable_prefix_caching: true
+    enforce_eager: false
+    dtype: bfloat16
+    seed: 42
+synchronizer:
+  sync_method: nccl
+  sync_interval: 20
+  sync_timeout: 12000
+  sync_offset: 0
+trainer:
+  save_interval: 100
+  grad_clip: 1.0
+  use_dynamic_bsz: true
+  max_token_len_per_gpu: 16384
+  ulysses_sequence_parallel_size: 1

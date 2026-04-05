@@ -1,0 +1,36 @@
+mode: train
+project: "Trinity-RFT-example"
+name: "sft_mot"
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+algorithm:
+  algorithm_type: sft
+  optimizer:
+    lr: 1e-5
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,Qwen/Qwen2.5-7B-Instruct}
+  max_response_tokens: 10240
+  max_model_len: 10752
+cluster:
+  node_num: 1
+  gpu_per_node: 8
+buffer:
+  total_epochs: 1
+  train_batch_size: 64
+  trainer_input:
+    experience_buffer:
+      name: MoT
+      storage_type: file
+      path: open-r1/Mixture-of-Thoughts
+      subset_name: math
+      format:
+        prompt_type: messages
+        messages_key: messages
+synchronizer:
+  sync_method: 'checkpoint'
+  sync_interval: 10
+trainer:
+  save_interval: 10
+  grad_clip: 1.0
+  use_dynamic_bsz: true
+  max_token_len_per_gpu: 22000
+  ulysses_sequence_parallel_size: 1

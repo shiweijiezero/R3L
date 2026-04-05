@@ -1,0 +1,56 @@
+project: "dpo_example"
+name: "trinity_dpo"
+mode: train
+algorithm:
+  algorithm_type: dpo
+  optimizer:
+    lr: 5e-7
+    lr_warmup_steps_ratio: 0.03  # the total steps will be injected during runtime
+    min_lr_ratio: 0.1   # only useful for warmup with cosine
+    warmup_style: cosine  # select from constant/cosine
+    betas: [0.9, 0.95]
+  kl_loss_fn: k1
+  kl_loss_fn_args:
+    kl_coef: 0.1
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,Qwen/Qwen2.5-7B-Instruct}
+  max_response_tokens: 1024
+  max_model_len: 1536
+cluster:
+  node_num: 1
+  gpu_per_node: 8
+buffer:
+  total_epochs: 2
+  train_batch_size: 64
+  trainer_input:
+    experience_buffer:
+      name: dpo_buffer
+      storage_type: file
+      enable_progress_bar: True
+      path: ${oc.env:TRINITY_TASKSET_PATH} # Path to the DPO dataset
+      format:
+        prompt_type: plaintext # plaintext/messages
+        prompt_key: prompt
+        chosen_key: chosen
+        rejected_key: rejected
+synchronizer:
+  sync_method: 'checkpoint'
+  sync_interval: 30
+  sync_timeout: 12000
+trainer:
+  save_interval: 30
+  total_steps: 200
+  use_dynamic_bsz: false
+  max_token_len_per_gpu: 16384
+  ulysses_sequence_parallel_size: 1
+  trainer_config:
+    actor_rollout_ref:
+      model:
+        use_remove_padding: false
+      actor:
+        ppo_micro_batch_size_per_gpu: 2
+      ref:
+        log_prob_micro_batch_size_per_gpu: 2
+    trainer:
+      balance_batch: false

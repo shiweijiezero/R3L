@@ -1,0 +1,69 @@
+project: "Trinity-RFT-Example"
+name: "MedicineQA_grpo_rubric_as_reward"
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+algorithm:
+  algorithm_type: grpo
+  repeat_times: 8
+  optimizer:
+    lr: 2e-6
+  advantage_fn_args:
+    std_threshold: 0.0001  # effectively zero
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,Qwen/Qwen3-4B-Instruct-2507}
+  max_response_tokens: 1024
+  max_model_len: 10240
+cluster:
+  node_num: 1
+  gpu_per_node: 8
+buffer:
+  total_epochs: 2
+  batch_size: 96
+  train_batch_size: 768 # 8*96
+  explorer_input:
+    taskset:
+      name: rar_medicine
+      storage_type: file
+      path: anisha2102/RaR-Medicine
+      split: train
+      format:
+        prompt_key: 'question'
+        response_key: 'reference_answer'
+      rollout_args:
+        temperature: 1.0
+      enable_progress_bar: false
+      default_workflow_type: 'rubric_judge_workflow'
+  trainer_input:
+    experience_buffer:
+      name: experience_buffer
+      storage_type: queue
+      replay_buffer:
+        enable: true
+explorer:
+  eval_interval: 10
+  max_timeout: 3600
+  rollout_model:
+    engine_num: 2
+    tensor_parallel_size: 1
+    enable_prefix_caching: true
+    enforce_eager: false
+    dtype: bfloat16
+    seed: 42
+  auxiliary_models:
+    - model_path: Qwen/Qwen3-30B-A3B-Instruct-2507
+      engine_num: 1
+      tensor_parallel_size: 2
+      enable_thinking: false
+      max_prompt_tokens: 19456
+      max_response_tokens: 1024
+      max_model_len: 20480
+synchronizer:
+  sync_style: dynamic_by_explorer
+  sync_method: 'nccl'
+  sync_interval: 5
+  sync_timeout: 3600
+trainer:
+  save_interval: 100
+  grad_clip: 1.0
+  use_dynamic_bsz: true
+  max_token_len_per_gpu: 16384
+  ulysses_sequence_parallel_size: 1

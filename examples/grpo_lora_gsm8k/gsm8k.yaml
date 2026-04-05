@@ -1,0 +1,75 @@
+project: "Trinity-RFT-gsm8k"
+name: "qwen2.5-1.5B-gsm8k"
+checkpoint_root_dir: ${oc.env:TRINITY_CHECKPOINT_ROOT_DIR,./checkpoints}
+algorithm:
+  algorithm_type: grpo
+  repeat_times: 8
+  optimizer:
+    lr: 1e-5
+model:
+  model_path: ${oc.env:TRINITY_MODEL_PATH,Qwen/Qwen2.5-1.5B-Instruct}
+  max_response_tokens: 1024
+  max_model_len: 2048
+  lora_configs:
+  - name: lora
+    lora_rank: 32
+    lora_alpha: 32
+cluster:
+  node_num: 1
+  gpu_per_node: 8
+buffer:
+  total_epochs: 10
+  batch_size: 96
+  explorer_input:
+    taskset:
+      name: gsm8k
+      storage_type: file
+      path: ${oc.env:TRINITY_TASKSET_PATH,openai/gsm8k}
+      subset_name: 'main'
+      split: 'train'
+      format:
+        prompt_key: 'question'
+        response_key: 'answer'
+      rollout_args:
+        temperature: 1.0
+    eval_tasksets:
+    - name: gsm8k-eval
+      storage_type: file
+      path: ${oc.env:TRINITY_TASKSET_PATH,openai/gsm8k}
+      subset_name: 'main'
+      split: 'test'
+      format:
+        prompt_key: 'question'
+        response_key: 'answer'
+    default_workflow_type: 'math_workflow'
+  trainer_input:
+    experience_buffer:
+      name: gsm8k_buffer
+      storage_type: queue
+explorer:
+  eval_interval: 10
+  runner_per_model: 16
+  rollout_model:
+    engine_num: 1
+    tensor_parallel_size: 4
+    enable_prefix_caching: true
+    enforce_eager: false
+    dtype: bfloat16
+    seed: 42
+synchronizer:
+  sync_method: 'checkpoint'
+  sync_interval: 1
+  sync_timeout: 12000
+trainer:
+  trainer_type: 'verl'
+  save_interval: 100
+  grad_clip: 1.0
+  use_dynamic_bsz: true
+  max_token_len_per_gpu: 16384
+  ulysses_sequence_parallel_size: 1
+  trainer_config:
+    actor_rollout_ref:
+      actor:
+        checkpoint:
+          load_contents: ['model']
+          save_contents: ['model']
